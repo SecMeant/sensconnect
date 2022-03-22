@@ -20,6 +20,12 @@
 #define RESP_BAD_PARAM 1
 #define RESP_BAD_DEV 2
 
+#ifdef DEBUG_LOGS
+#define debug_log(...) printf(__VA_ARGS__)
+#else
+#define debug_log(...)
+#endif
+
 __attribute__((noreturn)) void internal_error(int errc)
 {
     fprintf(stderr, "Internal error: %i", errc);
@@ -58,8 +64,6 @@ struct resp_status
 
 void resp_status(int s, struct sockaddr_in *c, struct resp_status msg)
 {
-    memset(&msg, 0, sizeof(msg));
-
     if (sendto(s, &msg, sizeof(msg), 0, (struct sockaddr *) c, sizeof(struct sockaddr_in)) != sizeof(msg)) {
         fprintf(stderr, "Warning: Failed to send response to client at %s:%d\n",
                 inet_ntoa(c->sin_addr), ntohs(c->sin_port));
@@ -136,16 +140,40 @@ int search_field(struct node_device *dev, uint8_t *name_data, size_t data_len)
     return -1;
 }
 
+void serialize_int(char *outbuf, int i)
+{
+  char *begin = outbuf;
+  const char chars[] = "0123456789";
+
+  while (i) {
+    int ii = i % 10;
+    *begin = chars[ii];
+
+    i /= 10;
+    ++begin;
+  }
+
+  --begin;
+
+  while(outbuf < begin) {
+    char tmp = *outbuf;
+    *outbuf = *begin;
+    *begin = tmp;
+
+    ++outbuf;
+    --begin;
+  }
+}
+
 void serialize_field(char *outbuf, struct node_device *dev, int field_id)
 {
     memcpy(outbuf, dev->e_dev.field_names[field_id], dev->e_dev.field_names_len[field_id]);
     outbuf += dev->e_dev.field_names_len[field_id];
 
-    *outbuf = '\0';
+    *outbuf = ':';
     outbuf += 1;
 
-    memcpy(outbuf, &dev->e_dev.field_values[field_id], sizeof(dev->e_dev.field_values[field_id]));
-    outbuf += sizeof(dev->e_dev.field_values[field_id]);
+    serialize_int(outbuf, dev->e_dev.field_values[field_id]);
 }
 
 void append_dev(struct node_device *dev)
@@ -160,6 +188,8 @@ void append_dev(struct node_device *dev)
 int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize_t packet_len)
 {
     struct resp_status msg;
+
+    memset(&msg, 0, sizeof(msg));
 
     if (packet_len > MAX_PACKET_LEN)
         internal_error(0x0A);
@@ -180,6 +210,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
          */
         case PROTO_DEVREG:
         {
+            debug_log("[DEBUG] DEVREG");
             struct node_device *ndev = malloc(sizeof(struct node_device));
             uint16_t namelen = (((uint16_t) packet_buff[2]) << 8) | ((uint16_t) packet_buff[1]);
             uint8_t *name = &packet_buff[3];
@@ -238,6 +269,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
          */
         case PROTO_SENSDATA:
         {
+            debug_log("[DEBUG] SENSDATA");
             uint16_t namelen = (((uint16_t) packet_buff[2]) << 8) | ((uint16_t) packet_buff[1]);
             uint8_t *name = &packet_buff[3];
 
@@ -296,7 +328,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
         /*
          * @packet GETSUM - Get data summary
          *
-         * uint8_t cmd = PROTO_SENSDATA;
+         * uint8_t cmd = PROTO_GETSUM;
          * uint16_t namelen;
          * char name[namelen]; // VLA
          * uint8_t field_name_len;
@@ -304,6 +336,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
          */
         case PROTO_GETSUM:
         {
+            debug_log("[DEBUG] GETSUM");
             uint16_t namelen = (((uint16_t) packet_buff[2]) << 8) | ((uint16_t) packet_buff[1]);
             uint8_t *name = &packet_buff[3];
 
@@ -328,7 +361,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             uint8_t field_name_len = packet_buff[1 + 2 + namelen];
             uint8_t *field_name = &packet_buff[1 + 2 + namelen + 1];
 
-            if (field_name + field_name_len >= packet_buff + packet_len)
+            if (field_name + field_name_len > packet_buff + packet_len)
             {
                 msg.code = RESP_BAD_PARAM;
                 strncpy(msg.extra_str, "Reported field name is too long!", 64);
@@ -366,6 +399,8 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             }
 
             char resp_buffer[resp_sz];
+            memset(resp_buffer, 0, resp_sz);
+
             serialize_field(resp_buffer, dev, field_id);
 
             msg.code = RESP_SUCCESS;

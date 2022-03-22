@@ -36,9 +36,15 @@ def sensdata(sock, name, field, value):
     sock.sendall(msg)
     return s.recv(4096)
 
+def getsum(sock, name, field):
+    msg = p8(GETSUM) + p16(len(name)) + name + p8(len(field)) + field
+    sock.sendall(msg)
+    return s.recv(4096)
+
 #s.sendall(b'\x00' + b'\x05\x00' + b'ASDFG' + b'\x02\x00' + b'\x04' + b'zxcv' + b'\x05' + b'qwer')
 #print(s.recv(4096))
 
-print(devreg(sock = s, name = b'ASDFGH\x00QWER', fields = (b'zxcv', b'qwer')))
+print(devreg(sock = s, name = b'ASDFGH', fields = (b'zxcv', b'qwer')))
 print(sensdata(sock = s, name = b'ASDFGH', field = b'zxcv', value = 1337))
+print(getsum(sock = s, name = b'ASDFGH', field = b'zxcv'))
 
