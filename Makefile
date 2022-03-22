@@ -1,5 +1,5 @@
 PHONY:=
-CFLAGS:=-O0 -g3 -ggdb -Wall -Wextra
+CFLAGS:=-O0 -g3 -ggdb -Wall -Wextra -std=c17
 
 all: sensconnect
 
