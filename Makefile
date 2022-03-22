@@ -1,5 +1,6 @@
-PHONY:=
 CFLAGS:=-O0 -g3 -ggdb -Wall -Wextra -std=c17
+
+PHONY:=
 
 all: sensconnect
 

@@ -84,17 +84,15 @@ struct node_device
 {
     struct list_head head;
     struct entry_dev e_dev;
-} g_devs;
+} *g_devs;
 
 void* alloc_new_str(uint8_t *data, size_t data_len, size_t *real_data_len)
 {
     char * ret = NULL;
 
-    if (data[data_len] != 0)
-        data_len += 1;
-
-    ret = malloc(data_len);
+    ret = malloc(data_len+1);
     memcpy(ret, data, data_len);
+    ret[data_len] = 0;
 
     *real_data_len = data_len;
 
@@ -111,7 +109,7 @@ struct node_device *search_device(uint8_t *name_data, size_t data_len)
     memcpy(name, name_data, data_len);
     name[real_name_sz - 1] = '\0';
 
-    for (struct node_device *head = &g_devs; head; head = (struct node_device *) head->head.next) {
+    for (struct node_device *head = g_devs; head; head = (struct node_device *) head->head.next) {
         if (strcmp(head->e_dev.name, name) == 0)
             return head;
     }
@@ -148,6 +146,15 @@ void serialize_field(char *outbuf, struct node_device *dev, int field_id)
 
     memcpy(outbuf, &dev->e_dev.field_values[field_id], sizeof(dev->e_dev.field_values[field_id]));
     outbuf += sizeof(dev->e_dev.field_values[field_id]);
+}
+
+void append_dev(struct node_device *dev)
+{
+  struct node_device **head = &g_devs;
+
+  while (*head) head = (struct node_device**) &((*head)->head.next);
+
+  *head = dev;
 }
 
 int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize_t packet_len)
@@ -201,7 +208,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             }
 
             uint8_t *fields = &packet_buff[1 + 2 + namelen + 1];
-            for (int i = 0; i < field_count && fields < (packet_buff + packet_len); ++i, fields += fields[0])
+            for (int i = 0; i < field_count && fields < (packet_buff + packet_len); ++i, fields += fields[0] + 1)
             {
                 size_t real_data_len = 0;
                 ndev->e_dev.field_names[i] = alloc_new_str(&fields[1], fields[0], &real_data_len);
@@ -209,6 +216,8 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             }
 
             // TODO handle failures in the middle (free malloced node_device).
+
+            append_dev(ndev);
 
             msg.code = RESP_SUCCESS;
             resp_status(s, client, msg);
@@ -279,7 +288,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             msg.code = RESP_SUCCESS;
             resp_status(s, client, msg);
 
-            puts("SENSDATA success");
+            printf("[STATUS] New sensor data for %s.%s: %i\n", dev->e_dev.name, dev->e_dev.field_names[field_id], value);
 
             break;
         }
