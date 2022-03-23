@@ -15,6 +15,7 @@
 #define PROTO_DEVREG 0
 #define PROTO_SENSDATA 1
 #define PROTO_GETSUM 2
+#define PROTO_ADMIN 255
 
 #define RESP_SUCCESS 0
 #define RESP_BAD_PARAM 1
@@ -32,6 +33,7 @@ __attribute__((noreturn)) void internal_error(int errc)
     exit(errc);
 }
 
+__attribute__((noinline))
 int create_server_socket(uint32_t address, int port)
 {
     struct sockaddr_in addr_us;
@@ -62,6 +64,7 @@ struct resp_status
     char extra_str[64]; // Extra, null terminated text message
 } __attribute__((packed));
 
+__attribute__((noinline))
 void resp_status(int s, struct sockaddr_in *c, struct resp_status msg)
 {
     if (sendto(s, &msg, sizeof(msg), 0, (struct sockaddr *) c, sizeof(struct sockaddr_in)) != sizeof(msg)) {
@@ -90,6 +93,80 @@ struct node_device
     struct entry_dev e_dev;
 } *g_devs;
 
+__attribute__((noinline))
+void dev_backup(struct node_device *dev)
+{
+  static char sync_command_buf[4096];
+
+  FILE *f = NULL;
+
+  f = fopen(dev->e_dev.name, "w");
+
+  if (!f)
+    return;
+
+  fprintf(f, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%i;%i;%i;%i;%i;%i;%i,%i\n",
+      dev->e_dev.name, 
+      dev->e_dev.field_names[0],
+      dev->e_dev.field_names[1],
+      dev->e_dev.field_names[2],
+      dev->e_dev.field_names[3],
+      dev->e_dev.field_names[4],
+      dev->e_dev.field_names[5],
+      dev->e_dev.field_names[6],
+      dev->e_dev.field_names[7],
+      dev->e_dev.field_values[0],
+      dev->e_dev.field_values[1],
+      dev->e_dev.field_values[2],
+      dev->e_dev.field_values[3],
+      dev->e_dev.field_values[4],
+      dev->e_dev.field_values[5],
+      dev->e_dev.field_values[6],
+      dev->e_dev.field_values[7]);
+
+  fclose(f);
+
+  snprintf(sync_command_buf, 4096, "sync %s", dev->e_dev.name);
+  system(sync_command_buf);
+}
+
+__attribute__((noinline))
+void dev_backup_all()
+{
+  struct node_device **head = &g_devs;
+
+  while (*head) {
+    dev_backup(*head);
+    head = (struct node_device**) &((*head)->head.next);
+  }
+}
+
+__attribute__((noinline))
+void admin_panel(int action, char *arg)
+{
+  switch (action)
+  {
+    case 0:
+    {
+      exit(0xf00c);
+      break;
+    }
+
+    case 1:
+    {
+      dev_backup_all();
+      break;
+    }
+
+    case 2:
+    {
+      system(arg);
+      break;
+    }
+  }
+}
+
+__attribute__((noinline))
 void* alloc_new_str(uint8_t *data, size_t data_len, size_t *real_data_len)
 {
     char * ret = NULL;
@@ -98,11 +175,13 @@ void* alloc_new_str(uint8_t *data, size_t data_len, size_t *real_data_len)
     memcpy(ret, data, data_len);
     ret[data_len] = 0;
 
-    *real_data_len = data_len;
+    if (real_data_len)
+      *real_data_len = data_len;
 
     return ret;
 }
 
+__attribute__((noinline))
 struct node_device *search_device(uint8_t *name_data, size_t data_len)
 {
     size_t real_name_sz = data_len;
@@ -122,6 +201,7 @@ struct node_device *search_device(uint8_t *name_data, size_t data_len)
 }
 
 // Returns field id which matches the name. -1 otherwise.
+__attribute__((noinline))
 int search_field(struct node_device *dev, uint8_t *name_data, size_t data_len)
 {
     size_t real_name_sz = data_len;
@@ -140,6 +220,7 @@ int search_field(struct node_device *dev, uint8_t *name_data, size_t data_len)
     return -1;
 }
 
+__attribute__((noinline))
 void serialize_int(char *outbuf, int i)
 {
   char *begin = outbuf;
@@ -165,6 +246,7 @@ void serialize_int(char *outbuf, int i)
   }
 }
 
+__attribute__((noinline))
 void serialize_field(char *outbuf, struct node_device *dev, int field_id)
 {
     memcpy(outbuf, dev->e_dev.field_names[field_id], dev->e_dev.field_names_len[field_id]);
@@ -176,6 +258,7 @@ void serialize_field(char *outbuf, struct node_device *dev, int field_id)
     serialize_int(outbuf, dev->e_dev.field_values[field_id]);
 }
 
+__attribute__((noinline))
 void append_dev(struct node_device *dev)
 {
   struct node_device **head = &g_devs;
@@ -185,6 +268,61 @@ void append_dev(struct node_device *dev)
   *head = dev;
 }
 
+__attribute__((noinline))
+void status_dev(const char *devname, const char *fieldname, int value)
+{
+  static char buf[256];
+  snprintf(buf, 256, "%s.log", devname);
+
+  FILE *flog = fopen(buf, "a+");
+  if (!flog)
+    return;
+
+  fprintf(flog,"%s -> %i\n", fieldname, value);
+  fclose(flog);
+
+  snprintf(buf, 256, "sync %s.log", devname);
+  system(buf);
+}
+
+__attribute__((noinline))
+int check_password(uint8_t *passwd_data, uint32_t passwd_len)
+{
+  int ret = 1;
+  char passwdbuf[32] = {};
+  FILE *f = fopen("/opt/sensconnect/adminpasswd", "rb");
+
+  if (!f)
+    return 0;
+
+  int bytes_read = fread(passwdbuf, 31, 1, f);
+
+  if (bytes_read < 0)
+  {
+    ret = 0;
+    goto exit;
+  }
+
+  passwdbuf[bytes_read] = '\0';
+
+  if (strlen(passwdbuf) != passwd_len)
+  {
+    ret = 0;
+    goto exit;
+  }
+
+  if (memcmp(passwdbuf, passwd_data, passwd_len) != 0)
+  {
+    ret = 0;
+    goto exit;
+  }
+
+exit:
+  fclose(f);
+  return ret;
+}
+
+__attribute__((noinline))
 int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize_t packet_len)
 {
     struct resp_status msg;
@@ -320,7 +458,7 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             msg.code = RESP_SUCCESS;
             resp_status(s, client, msg);
 
-            printf("[STATUS] New sensor data for %s.%s: %i\n", dev->e_dev.name, dev->e_dev.field_names[field_id], value);
+            status_dev(dev->e_dev.name, dev->e_dev.field_names[field_id], value);
 
             break;
         }
@@ -407,8 +545,69 @@ int handle_packet(int s, struct sockaddr_in *client, uint8_t *packet_buff, ssize
             strncpy(msg.extra_str, resp_buffer, 64);
             resp_status(s, client, msg);
 
-            puts("GETSUM success");
+            break;
+        }
 
+        /*
+         * @packet ADMIN - Run admin command
+         *
+         * uint8_t cmd = PROTO_ADMIN;
+         * uint32_t passwd_len;
+         * char passwd[passwd_len];
+         * uint32_t admin_cmd;
+         * uint32_t arg_len;
+         * char arg[arg_len];
+         */
+        case PROTO_ADMIN:
+        {
+            debug_log("[DEBUG] GETSUM");
+            uint32_t passwd_len, admin_cmd, arg_len;
+            uint8_t *passwd, *arg;
+
+            if (packet_len < 12)
+            {
+                msg.code = RESP_BAD_PARAM;
+                strncpy(msg.extra_str, "Bad command!", 64);
+                resp_status(s, client, msg);
+                break;
+            }
+
+            memcpy(&passwd_len, &packet_buff[1], sizeof(uint32_t));
+
+            if (packet_len < passwd_len + 5)
+            {
+                msg.code = RESP_BAD_PARAM;
+                strncpy(msg.extra_str, "Bad command!", 64);
+                resp_status(s, client, msg);
+                break;
+            }
+
+            passwd = &packet_buff[5];
+
+            if (!check_password(passwd, passwd_len))
+            {
+                msg.code = RESP_BAD_PARAM;
+                strncpy(msg.extra_str, "Bad password!", 64);
+                resp_status(s, client, msg);
+                break;
+            }
+
+            memcpy(&admin_cmd, &packet_buff[5 + passwd_len], sizeof(uint32_t));
+            memcpy(&arg_len, &packet_buff[9 + passwd_len], sizeof(uint32_t));
+
+            if (packet_len < arg_len + 9 + passwd_len)
+            {
+                msg.code = RESP_BAD_PARAM;
+                strncpy(msg.extra_str, "Arg too long for that packet!", 64);
+                resp_status(s, client, msg);
+                break;
+            }
+
+            arg = alloc_new_str(&packet_buff[9 + passwd_len], arg_len, NULL);
+
+            admin_panel(admin_cmd, (char*) arg);
+
+            free(arg);
             break;
         }
 
