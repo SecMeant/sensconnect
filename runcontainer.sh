@@ -1,2 +1,2 @@
 #!/bin/sh
-docker run --rm -v $(pwd):/home/sensconnect/src --network=host sensconnect src/sensconnect
+docker run --rm --network=host --privileged sensconnect_gdb ./sensconnect

@@ -1,4 +1,4 @@
-CFLAGS:=-O1 -g3 -ggdb -Wall -Wextra -std=c17 -fno-stack-protector -fno-omit-frame-pointer
+CFLAGS:=-O1 -Wall -Wextra -std=c17 -fno-stack-protector -fno-omit-frame-pointer -no-pie
 
 PHONY:=
 
@@ -6,6 +6,7 @@ all: sensconnect
 
 sensconnect: sensconnect.o
 	$(CC) $(CFLAGS) $^ -o $@
+	strip $@
 
 %.o: %.c Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
