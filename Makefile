@@ -1,4 +1,4 @@
-CFLAGS:=-O1 -Wall -Wextra -std=c17 -fno-stack-protector -fno-omit-frame-pointer -no-pie
+CFLAGS:=-O1 -Wall -Wextra -std=c17 -fno-stack-protector -fno-omit-frame-pointer -no-pie -mno-sse
 
 PHONY:=
 
