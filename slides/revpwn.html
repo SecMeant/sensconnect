@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Wprowadzenie do REV / PWN</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/blood.css" id="theme">
+		<style type="text/css" media="screen">
+			.slides section.has-dark-background,
+			.slides section.has-dark-background h3 {
+				color: #fff;
+			}
+			.slides section.has-light-background,
+			.slides section.has-light-background h3 {
+				color: #222;
+			}
+
+			.ImageCompareBox {
+				display: flex;
+				flex-direction: row;
+				justify-content: space-evenly;
+			}
+
+			table {
+				font-size: 20px;
+				font-family: arial, sans-serif;
+				width: 20%;
+			}
+
+			tr {
+				border: 1px solid #dddddd;
+			}
+
+			td, th {
+				border: 1px solid #dddddd;
+				text-align: left;
+				padding: 8px;
+			}
+
+			td:nth-child(even), th:nth-child(even) {
+				background-color: #3c3c3c;
+			}
+
+			a {
+				color: white !important;
+				text-decoration: underline !important;
+			}
+		</style>
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<div class="slides">
+
+				<section data-transition="fade-out">
+					<h5>Wprowadzenie do REV / PWN</h5>
+				</section>
+
+				<section data-transition="fade-out">
+					<div style='font-size:0.8em; margin-bottom:30px;'>Czym są CTF</div>
+					<ul style='font-size: 0.7em;'>
+						<li>pwn</li>
+						<li>rev</li>
+						<li>web</li>
+						<li>crypto</li>
+						<li>...</li>
+					</ul>
+					<ul style='font-size: 0.7em;'>
+						<li>ctftime.org</li>
+						<li>hackthebox.com</li>
+						<li>pwnable.kr</li>
+						<li>pwnable.tw</li>
+						<li>...</li>
+					</ul>
+				</section>
+
+				<section data-transition="fade-out">
+					<div style='font-size:0.6em; margin-bottom:30px;'>
+						sensconnect - hardware/software dla sieci urządzeń IOT (no i nasze crackme)
+					</div>
+
+					<div style='font-size:0.6em; margin-top:10px; text-align: left;'>
+						Przypomnienie x86
+					</div>
+					<div style='text-align: left;'>
+					<ul style='font-size: 0.6em; text-align: left;'>
+						<li>Stack</li>
+						<li>Heap</li>
+						<li>ELF</li>
+						<li>.reloc, GOT, PLT</li>
+					</ul>
+					</div>
+
+					<div style='font-size:0.6em; margin-top:10px; text-align: left;'>
+						Narzędzia
+					</div>
+					<div style='text-align: left;'>
+					<ul style='font-size: 0.6em; text-align: left;'>
+						<li>Disassembler (+ decompiler)</li>
+						<li>Fuzzing</li>
+						<li>strace, ltrace etc.</li>
+						<li>Emulatory, maszyny wirtualne</li>
+					</ul>
+					</div>
+				</section>
+
+				<section data-transition="fade-out">
+					<div style='font-size:0.6em; margin-bottom:30px;'>
+						Co dalej?
+					</div>
+
+					<div style='text-align: left;'>
+					<ul style='font-size: 0.7em; text-align: left;'>
+						<li><b>IRC/Discord/Twitter/blogi</b></li>
+						<li><b>CTF writeups</b></li>
+					</ul>
+					</div>
+					<div style='text-align: left;'>
+					<ul style='font-size: 0.6em; text-align: left;'>
+						<li>Praktyczna Inżynieria Wsteczna</li>
+						<li>Tangled Web</li>
+						<li>Silence on the wire</li>
+						<li>Windows Internals</li>
+						<li>Linux, GNU, LLVM - kod źródłowy</li>
+						<li>rev.ng</li>
+						<li>QEMU</li>
+						<li>Valgrind</li>
+					</ul>
+					</div>
+				</section>
+
+			</div>
+		</div>
+
+		<script src="js/reveal.js"></script>
+
+		<script>
+
+			Reveal.initialize({
+				center: true,
+				history: true,
+			});
+
+		</script>
+
+	</body>
+</html>
